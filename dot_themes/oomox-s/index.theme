@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=oomox-s
+Comment=Generated with Themix Base16 plugin
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+Name=oomox-s
+GtkTheme=oomox-s
+IconTheme=oomox-s
+MetacityTheme=oomox-s
