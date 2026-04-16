@@ -2,8 +2,12 @@
 -- require("folke.config.lazy")
 
 -- gordon
-vim.opt.rtp:prepend(vim.fn.stdpath("config") .. "/lua/gordon")
-require("gordon.init")
+-- vim.opt.rtp:prepend(vim.fn.stdpath("config") .. "/lua/gordon")
+-- require("gordon.init")
+
+-- oldgordon
+vim.opt.rtp:prepend(vim.fn.stdpath("config") .. "/lua/oldgordon")
+require("oldgordon.init")
 
 -- nvchad
 -- local nvchad_path = vim.fn.stdpath("config") .. "/lua/nvchad/nvstarter"

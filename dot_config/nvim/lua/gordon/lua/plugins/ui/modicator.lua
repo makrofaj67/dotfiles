@@ -1,7 +1,8 @@
 return
 {
 	"mawkler/modicator.nvim",
-	event = "VeryLazy",
+	lazy = false,
+	priority = 900,
 	opts = {
 		show_warnings = false,
 		highlights = {

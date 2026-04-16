@@ -1,5 +1,4 @@
 return {
-	-- 1. Copilot (Ghost Text / Otomatik Tamamlama)
 	{
 		"zbirenbaum/copilot.lua",
 		cmd = "Copilot",
@@ -10,16 +9,15 @@ return {
 				auto_trigger = true,
 				debounce = 75,
 				keymap = {
-					accept = "<M-CR>", -- ALT + ENTER ile kabul et
+					accept = "<M-CR>",
 					next = "<M-]>",
 					prev = "<M-[>",
 					dismiss = "<C-]>",
 				},
 			},
-			panel = { enabled = false }, -- Cmp/Blink ile çakışmaması için panel kapalı
+			panel = { enabled = false },
 		},
 	},
-	-- 2. Copilot Chat (Sohbet Ekranı)
 	{
 		"CopilotC-Nvim/CopilotChat.nvim",
 		dependencies = {

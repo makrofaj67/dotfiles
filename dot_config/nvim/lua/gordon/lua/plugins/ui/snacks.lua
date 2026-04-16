@@ -34,6 +34,8 @@ G O R D O N   A R C H I T E C T U R E
 		input = { enabled = true },
 		-- Sag alt kose saglam bildirimler (notify spami onler)
 		notifier = { enabled = true, timeout = 3000 },
+		-- Dikey cizgiler (oldgordon'daki gibi)
+		indent = { enabled = true },
 	},
 	keys = {
 		{ "<leader>n", function() Snacks.notifier.show_history() end, desc = "Bildirim Gecmisini Goster" },
