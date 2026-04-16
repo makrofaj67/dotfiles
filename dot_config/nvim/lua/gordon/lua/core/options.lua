@@ -17,10 +17,7 @@ vim.o.showtabline = 2
 
 vim.o.completeopt = "menuone,noselect"
 
--- Limit popup menu height
 vim.o.pumheight = 12
--- Configurable popup menu max width (not built-in; expose as global)
--- You can change this in your config, e.g. `vim.g.pumwidth = 60`
 vim.g.pumwidth = 80
 
 local o = vim.o
@@ -45,15 +42,13 @@ g.mail42 = "rakman@student.42istanbul.com.tr"
 
 o.undofile = true
 o.undodir = os.getenv("HOME") .. "/.local/share/nvim/undo"
--- Use modern shada instead of legacy viminfo
--- Store shada in Neovim state dir (usually ~/.local/state/nvim)
+
 vim.opt.shadafile = vim.fn.stdpath("state") .. "/shada/main.shada"
 
--- GUI font preference (applies to GUI clients like Neovide/Goneovim; harmless in terminal)
 local guifonts = {
-	"CaskaydiaCove Nerd Font Mono:h12", -- Nerd Fonts v3 mono family
-	"CaskaydiaCove Nerd Font:h12",   -- fallback: v3 non-mono
-	"Cascadia Code Nerd Font:h12",   -- fallback: older v2 name
+	"CaskaydiaCove Nerd Font Mono:h12",
+	"CaskaydiaCove Nerd Font:h12",
+	"Cascadia Code Nerd Font:h12",
 }
 o.guifont = table.concat(guifonts, ",")
 
