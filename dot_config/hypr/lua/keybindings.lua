@@ -8,6 +8,7 @@ local closeWindowBind = hl.bind(MainMod .. " + C", hl.dsp.window.close())
 hl.bind(MainMod .. " + M",
 	hl.dsp.exec_cmd("command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch 'hl.dsp.exit()'"))
 
+hl.bind(MainMod .. " + T", hl.dsp.exec_cmd("thunar"))
 hl.bind(MainMod .. " + N", hl.dsp.exec_cmd("neovide"))
 hl.bind(MainMod .. " + Z", hl.dsp.exec_cmd(Browser))
 hl.bind(MainMod .. " + E", hl.dsp.exec_cmd(FileManager))

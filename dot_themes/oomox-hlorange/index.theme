@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=X-GNOME-Metatheme
+Name=oomox-hlorange
+Comment=Generated with Themix Base16 plugin
+Encoding=UTF-8
+
+[X-GNOME-Metatheme]
+Name=oomox-hlorange
+GtkTheme=oomox-hlorange
+IconTheme=oomox-hlorange
+MetacityTheme=oomox-hlorange
