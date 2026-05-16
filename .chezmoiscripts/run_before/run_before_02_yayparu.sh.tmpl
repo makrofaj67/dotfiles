@@ -1,0 +1,21 @@
+#!/bin/bash
+
+if ! command -v paru &> /dev/null || ! command -v yay &> /dev/null; then
+    sudo pacman -S --needed base-devel git
+    cd /tmp
+    
+    if ! command -v paru &> /dev/null; then
+        git clone https://aur.archlinux.org/paru.git
+        cd paru
+        makepkg -si --noconfirm
+        cd ..
+    fi
+    
+    if ! command -v yay &> /dev/null; then
+        git clone https://aur.archlinux.org/yay.git
+        cd yay
+        makepkg -si --noconfirm
+        cd ..
+    fi
+    
+fi

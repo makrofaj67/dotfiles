@@ -1,0 +1,17 @@
+#!/bin/bash
+
+{{- if eq .location "lambdacore" }}
+
+SUDOERS_FILE="/etc/sudoers.d/00_{{ .chezmoi.username }}"
+USER="{{ .chezmoi.username }}"
+RULE="$USER ALL=(ALL:ALL) NOPASSWD: ALL"
+
+if [ -f "$SUDOERS_FILE" ] && sudo grep -q "NOPASSWD" "$SUDOERS_FILE"; then
+    echo "already"
+else
+    echo "$RULE" | sudo tee "$SUDOERS_FILE" > /dev/null
+    sudo chmod 440 "$SUDOERS_FILE"
+fi
+
+{{- end }}
+

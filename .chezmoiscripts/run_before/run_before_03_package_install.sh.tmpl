@@ -1,0 +1,42 @@
+#!/bin/bash
+
+OFFICIAL_PACKAGES=(
+    "base-devel" "git" "github-cli" "curl" "wget" "fish" "cmake" "ninja" 
+    "gdb" "clang" "valgrind" "strace" "nmap" "go" "bind" "tcpdump" 
+    "docker" "docker-compose" "fzf" "ripgrep" "fd" "bat" "zoxide" 
+    "btop" "eza" "tree" "jq" "procs" "sd" "neovim" "udisks2" 
+    "udisks2-btrfs" "ark" "xdg-desktop-portal" "xdg-desktop-portal-hyprland"
+	"awww"
+)
+
+AUR_PACKAGES=(
+    "atuin"
+    "yazi"
+    "wiremix"
+    "bluetui"
+    "impala"
+	"cheznav"
+    "wl-clipboard"
+    "copyq"
+    "quickshell"
+    "brightnessctl"
+    "playerctl"
+    "hypridle"
+    "hyprpolkitagent"
+    "grimblast-git"
+    "fuzzel"
+    "rustup"
+    "witr"
+    "lazygit"
+    "neovide"
+    "antigravity"
+    "visual-studio-code-bin"
+    "sublime-text-4"
+    "spotify-launcher"
+    "easyeffects"
+    "zen-browser-bin"
+)
+
+sudo pacman -S --needed --noconfirm "${OFFICIAL_PACKAGES[@]}"
+
+paru -S --needed --noconfirm "${AUR_PACKAGES[@]}"

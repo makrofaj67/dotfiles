@@ -1,0 +1,19 @@
+#!/bin/bash
+
+{{- if eq .location "lambdacore" }}
+
+POLKIT_FILE="/etc/polkit-1/rules.d/49-nopasswd_global.rules"
+
+if [ ! -f "$POLKIT_FILE" ]; then
+    sudo mkdir -p /etc/polkit-1/rules.d
+    sudo tee "$POLKIT_FILE" <<'EOF'
+polkit.addRule(function(action, subject) {
+    if (subject.isInGroup("wheel")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+fi
+
+{{- else }}
+{{- end }}
