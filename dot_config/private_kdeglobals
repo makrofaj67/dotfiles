@@ -111,9 +111,10 @@ ColorSchemeHash=a054744e5da530142f039caa182148b170643d2e
 Theme=buuf-nestort
 
 [KDE]
-LookAndFeelPackage=Oomox
+LookAndFeelPackage=org.kde.breezedark.desktop
 contrast=4
 frameContrast=0.2
+widgetStyle=Darkly
 
 [KFileDialog Settings]
 Allow Expansion=false

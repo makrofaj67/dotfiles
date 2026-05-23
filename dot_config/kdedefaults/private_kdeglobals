@@ -1,8 +1,8 @@
 [General]
-ColorScheme=Sweet
+ColorScheme=BreezeDark
 
 [Icons]
-Theme=buuf-nestort
+Theme=breeze-dark
 
 [KDE]
-widgetStyle=Darkly
+widgetStyle=Breeze

@@ -13,7 +13,7 @@ hl.bind(MainMod .. " + N", hl.dsp.exec_cmd("neovide"))
 hl.bind(MainMod .. " + Z", hl.dsp.exec_cmd(Browser))
 hl.bind(MainMod .. " + E", hl.dsp.exec_cmd(FileManager))
 hl.bind(MainMod .. " + V", hl.dsp.exec_cmd("copyq toggle"))
-hl.bind(MainMod .. " + R", hl.dsp.exec_cmd(Menu))
+hl.bind(MainMod .. " + R", hl.dsp.exec_cmd("fuzzel"))
 hl.bind(MainMod .. " + P", hl.dsp.window.pseudo())
 hl.bind(MainMod .. " + J", hl.dsp.layout("togglesplit")) -- dwindle only
 
