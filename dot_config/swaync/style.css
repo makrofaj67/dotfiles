@@ -1,16 +1,4 @@
-@define-color hypr-border #ff9a2f;
-@define-color text @theme_text_color;
-@define-color background alpha(@theme_bg_color, 1.0);
-@define-color background-alt alpha(@content_view_bg, 1.0);
-@define-color selected @theme_selected_bg_color;
-@define-color hover alpha(@selected, .4);
-@define-color urgent @error_color;
-@define-color text-alt @success_color;
-
-@define-color background-alt black;
-@define-color selected alpha(@text-alt, .4);
-@define-color hover alpha(@selected, .4);
-@define-color urgent @text-alt;
+@import 'colors.css';
 
 * {
 	color: @text;

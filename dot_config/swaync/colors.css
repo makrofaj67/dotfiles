@@ -1,0 +1,8 @@
+@define-color hypr-border #ff9a2f;
+@define-color text #f1e6d8;
+@define-color text-alt #f1e6d8;
+@define-color background alpha(#0d0b09, 1.0);
+@define-color background-alt alpha(#221812, 1.0);
+@define-color selected alpha(#ff9a2f, 0.8);
+@define-color hover alpha(#ff9a2f, 0.4);
+@define-color urgent #d51110;
