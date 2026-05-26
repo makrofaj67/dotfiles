@@ -1,0 +1,30 @@
+{
+  "plugins": {
+    "neo-tree.nvim": {
+      "rev": "722a182f6608172bdc3fd295b6180e583316ef1d",
+      "src": "https://github.com/nvim-neo-tree/neo-tree.nvim",
+      "version": "3.0.0 - 4.0.0"
+    },
+    "nui.nvim": {
+      "rev": "de740991c12411b663994b2860f1a4fd0937c130",
+      "src": "https://github.com/MunifTanjim/nui.nvim"
+    },
+    "nvim-lsp-file-operations": {
+      "rev": "b9c795d3973e8eec22706af14959bc60c579e771",
+      "src": "https://github.com/antosha417/nvim-lsp-file-operations"
+    },
+    "nvim-web-devicons": {
+      "rev": "0d7d35fa946837b8738b17c18d1faa1ac351e7f9",
+      "src": "https://github.com/nvim-tree/nvim-web-devicons"
+    },
+    "nvim-window-picker": {
+      "rev": "6382540b2ae5de6c793d4aa2e3fe6dbb518505ec",
+      "src": "https://github.com/s1n7ax/nvim-window-picker",
+      "version": ">=2.0.0"
+    },
+    "plenary.nvim": {
+      "rev": "74b06c6c75e4eeb3108ec01852001636d85a932b",
+      "src": "https://github.com/nvim-lua/plenary.nvim"
+    }
+  }
+}
