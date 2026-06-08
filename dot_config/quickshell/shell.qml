@@ -1,243 +1,548 @@
-import Quickshell
-import Quickshell.Hyprland
-import Quickshell.Io
 import QtQuick
 import QtQuick.Layouts
-import "widgets/top_center"
-import "widgets/system_overview"
-import "widgets/notepad"
-import "widgets/void_terminal"
-import "widgets/popup"
-import "widgets/hud"
-import "."
+import QtQuick.Controls
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
+import Quickshell.Io
+import Quickshell.Widgets
+// import QtQuick.Controls.Basic
 
-ShellRoot {
-    id: root
-    
-    // --- STATE YÖNETİMİ ---
-    property int activeVdesk: 1
-    property var populatedVdesks: ({})
-    property var allWindows: []
-    property var windowList: [] // Sağ tık menüsü için
+ShellRoot
+{
+    id: shellRoot
 
-    // Popup State
-    property int contextVdesk: 0
-    property bool popupVisible: false
-    property var popupScreen: null
-    property real popupX: 0
-    property real popupY: 0
-    // Overview State
-    property bool overviewVisible: false
-    
-    // --- IPC & EVENTS ---
-    Connections {
-        target: Hyprland
-        function onRawEvent(event) {
-            // Vdesk değişimi
-            if (event.name === "vdesk") {
-                let num = parseInt(event.data)
-                if (num >= 1 && num <= 9) root.activeVdesk = num
-            }
-            // Pencere olayları (Refresh tetikler)
-            if (event.name === "openwindow" || event.name === "closewindow" ||
-                event.name === "movewindow" || event.name === "workspace" ||
-                event.name === "resizewindow" || event.name === "fullscreen") {
-                stateTimer.restart()
-                allWindowsProcess.start()
-            }
-            // Özel toggle eventi
-            if (event.name === "custom" && event.data === "toggleOverview") {
-                root.toggleOverview()
-            }
-        }
-    }
-    
-    function toggleOverview() {
-        root.overviewVisible = !root.overviewVisible
-    }
-    
-    // Kısayol Tanımı
-    GlobalShortcut {
-        name: "toggleOverview"
-        description: "Toggle Steam Overview"
-        onPressed: root.toggleOverview()
-    }
-    
-    // Debounce Timer (Event spam'ini önler)
-    Timer {
-        id: stateTimer
-        interval: 200
-        onTriggered: stateProcess.running = true
-    }
+    property var parsedClients: []
+    property var parsedWorkspaces: []
+    property var parsedMonitors: []
 
-    // Overview açıkken pencere geometrisini canlı tut.
-    Timer {
-        id: overviewRefreshTimer
-        interval: 300
-        repeat: true
-        running: root.overviewVisible
-        onTriggered: allWindowsProcess.start()
-    }
-    
-    // --- PROCESSLER ---
-
-    // Başlangıçta aktif vdesk'i bul
-    Process {
-        id: initProcess
-        command: ["sh", "-c", "hyprctl printdesk | grep -oP 'desk \\K\\d+' | head -1"]
+    Process
+    {
+        id: jsonFetcher
+        command: ["sh", "-c", "echo \"{\\\"clients\\\": $(hyprctl clients -j), \\\"workspaces\\\": $(hyprctl workspaces -j), \\\"monitors\\\": $(hyprctl monitors -j)}\""]
         running: true
-        stdout: SplitParser {
-            onRead: data => {
-                let num = parseInt(data.trim())
-                if (num >= 1 && num <= 9) root.activeVdesk = num
-            }
-        }
-        onRunningChanged: {
-            if (!running) {
-                stateProcess.running = true
-                allWindowsProcess.start()
-            }
-        }
-    }
-    
-    // [FIX] Buffer Yönetimi İyileştirilmiş Window Fetcher
-    Process {
-        id: allWindowsProcess
-        command: ["/home/rakman/.config/quickshell/scripts/get_all_windows.sh"]
-        running: false
-        property string buffer: ""
-        
-        stdout: SplitParser {
-            splitMarker: ""
-            onRead: data => allWindowsProcess.buffer += data
-        }
-        
-        onExited: {
-            if (buffer.length > 0) {
-                try {
-                    root.allWindows = JSON.parse(buffer.trim())
-                } catch(e) {
-                    console.log("Parse error:", e)
-                    root.allWindows = []
+        stdout: StdioCollector
+        {
+            onStreamFinished:
+            {
+                try
+                {
+                    var data = JSON.parse(text)
+                    shellRoot.parsedClients = data.clients || []
+                    shellRoot.parsedWorkspaces = data.workspaces || []
+                    shellRoot.parsedMonitors = data.monitors || []
+                    topBar.rebuildWsCards()
+                    windowSwitcher.rebuildWsCards()
+                }
+                catch(e)
+                {
+                    console.log("aajsonFetcher JSON Parse Error:", e)
                 }
             }
-            buffer = ""
-        }
-        
-        function start() {
-            buffer = ""  // Process başlamadan önce temizle
-            running = true
         }
     }
-    
-    // Pencere Taşıma İşlemi
-    Process {
-        id: moveToVdeskProcess
-        property string targetAddress: ""
-        property int targetVdesk: 1
-        command: ["hyprctl", "dispatch", "movetodesksilent", targetVdesk + ",address:" + targetAddress]
-        running: false
-        onRunningChanged: {
-            if (!running) {
-                // [FIX] Manuel refresh kaldırıldı (Hyprland event'i zaten yapacak)
-                console.log("Move completed: " + targetAddress + " -> " + targetVdesk)
+
+    Process
+    {
+        id: eventListener
+        command: ["sh", "-c", "ncat 127.0.0.1 23456"]
+        running: true
+        stdout: SplitParser
+        {
+            splitMarker: "\n"
+            onRead: function(data)
+            {
+                var line = data
+                var idx = line.indexOf(">>")
+                if (idx !== -1)
+                {
+                    var eventName = line.substring(0, idx)
+                    var data = line.substring(idx + 2)
+                    if (["closewindow" ,"openwindow", "movewindow", "destroyworkspace", "createworkspace"].indexOf(eventName) !== -1)
+                    {
+                        jsonFetcher.running = false
+                        jsonFetcher.running = true
+                    }
+                }
+            }
+        }
+    }
+
+    PanelWindow
+    {
+        id: topBar
+
+        implicitHeight:27
+        implicitWidth: 1920
+        anchors.top: true
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        // WlrLayershell.exclusiveZone: 0
+        function rebuildWsCards()
+        {
+            let i = 0
+            while(workspaceButtonsRow.children.length > i)
+            {
+                workspaceButtonsRow.children[i].destroy()
+                i++
+            }
+
+            i = 0
+            while (shellRoot.parsedWorkspaces.length > i)
+            {
+                workspaceButtonComponent.createObject(workspaceButtonsRow, {
+                        workspaceid: shellRoot.parsedWorkspaces[i]["id"],
+                        allClients: shellRoot.parsedClients
+                    })
+                i++
+            }
+        }
+
+        Row
+        {
+            id: workspaceButtonsRow
+
+            spacing: 5
+            anchors.centerIn: parent
+
+        }
+
+        Rectangle
+        {
+            id: dateTime
+
+            height: 26
+            width: 210
+            radius: 4
+
+            property var dateString: null
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.left
+            anchors.leftMargin: 5
+            color: Theme.base
+            border.color: Theme.border 
+
+
+
+            Component
+            {
+                id: dateComponent
+
+                Text
+                {
+                    id: dateText
+                    anchors.centerIn: parent
+                    text: dateTime.dateString
+                    color: Theme.text
+                    font.pixelSize: 14
+                    topPadding: 4
+                    font.family: "Hack"
+                }
+            }
+
+
+
+            Timer
+            {
+                running: true
+                repeat: true
+                interval: 1000
+                onTriggered:
+                {
+                    clockWatcher.running = true
+                }
+            }
+
+            function ticktock()
+            {
+                let i = 0
+
+                while(dateTime.children.length > i)
+                {
+                    dateComponent.children[i].destroy()
+                    i++
+                }
+                dateComponent.createObject(dateTime, {
+
+                })
+            }
+
+            Process
+            {
+                id: clockWatcher
+                command: ["sh", "-c", "date '+[%u] %x %R:%S'"]
+                stdout: StdioCollector
+                {
+                    onStreamFinished:
+                    {
+                        try
+                        {
+                            dateTime.dateString = text
+                            dateTime.ticktock()
+                        }
+                        catch(e)
+                        {
+                            // console.log("date fetch problem", e)
+                        }
+                    }
+                }
+            }
+        }
+
+        Rectangle
+        {
+            anchors.right: parent.right
+            y: 6
+            color: Theme.border
+            height: 19
+            width: children[0].width + 10
+            anchors.rightMargin: 5
+
+            radius: 10
+
+            Slider
+            {
+                id: brightnessSlider
+                anchors.centerIn: parent
+
+                width: 120
+                height: 26
+                from: 0
+                to: 64764
+                stepSize: 648
+                onMoved:
+                {
+                    setBrightness.running = true
+                }
+
+                Process
+                {
+                    id: getBrightness
+                    command: ["sh", "-c", "brightnessctl get"]
+                    running: true
+                    stdout: StdioCollector
+                    {
+                        onStreamFinished:
+                        {
+                            try
+                            {
+                                var data = text
+                                brightnessSlider.value = data
+                            }
+                            catch (e)
+                            {
+                                // console.log(e)
+                            }
+                        }
+                    }
+                }
+
+                Process
+                {
+                    id: setBrightness
+                    command: ["sh", "-c", "brightnessctl set " + brightnessSlider.value]
+                    running: false
+                    stdout: StdioCollector
+                    {
+                        onStreamFinished:
+                        {
+                            try
+                            {
+                                // console.log(setBrightness.command)
+                            }
+                            catch (e)
+                            {
+                                console.log(e)
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+
+        Component
+        {
+            id: workspaceButtonComponent
+
+            Button
+            {
+                property var workspaceid: null
+                property var allClients: null
                 
-                // [FIX] Taşıma bitti, seçimi sıfırla
-                root.selectedWindowAddress = ""
-                root.selectedWindowVdesk = 0
-            }
-        }
-    }
-    
-    // Yardımcı Fonksiyonlar
-    function moveWindowToVdesk(address, vdesk) {
-        moveToVdeskProcess.targetAddress = address
-        moveToVdeskProcess.targetVdesk = vdesk
-        moveToVdeskProcess.running = true
-    }
-    
-    // Hangi vdesklerde pencere var?
-    Process {
-        id: stateProcess
-        command: ["sh", "-c", "hyprctl printstate | grep -B2 'Populated: true' | grep -oP '^- \\K\\d+' | tr '\\n' ','"]
-        running: false
-        stdout: SplitParser {
-            onRead: data => {
-                let newPopulated = {}
-                let nums = data.trim().split(',')
-                for (let n of nums) {
-                    let num = parseInt(n)
-                    if (num >= 1 && num <= 9) newPopulated[num] = true
+                height: 26
+                width: buttonArea.width + 9
+
+                onClicked:
+                {
+                    hyprctlDispatcher.running = true
                 }
-                root.populatedVdesks = newPopulated
+
+                Process
+                {
+                    id: hyprctlDispatcher
+                    command: ["sh", "-c", "hyprctl dispatch" + " '" + "hl.dsp.focus({ workspace = " + workspaceid + "})'"]
+                    running: false
+                }
+               
+                Row
+                {
+                    id: buttonArea
+                    anchors.verticalCenter: parent.verticalCaskaydiaCove
+
+                    leftPadding: 6
+                    spacing: 4
+
+                    Text
+                    {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: workspaceid + ""
+                        color: Theme.text 
+                        font.pixelSize: 14
+                        topPadding: 4
+                        font.family: "Hack"
+                    }
+
+                    Component.onCompleted:
+                    {
+                        let i = 0
+                        while(i < allClients.length)
+                        {
+                            if (allClients[i]["workspace"]["id"] === workspaceid)
+                            {
+                                clientIconComponent.createObject(buttonArea, {
+                                        clientClassName: allClients[i]["class"]
+                                    })
+                            }
+                            i++
+                        }
+                    }
+                }
+            }
+
+        }
+
+        Component
+        {
+            id: clientIconComponent
+
+            Text
+            {
+                property var clientClassName: null
+
+                text: clientClassName
+                font.pixelSize: 14
+                color: Theme.text
+                topPadding: 4
+                font.family: "Hack"
             }
         }
     }
-    
-    // showWindowMenu için allWindows'dan filtreleyerek liste oluştur (process spawn yok)
-    function getWindowsForVdesk(vdeskNum) {
-        return root.allWindows.filter(w => w.vdesk === vdeskNum).map(w => ({
-            address: w.address,
-            title: w.title,
-            class: w.class
-        }))
-    }
-    
-    function bringWindowHere(address) {
-        Hyprland.dispatch("movetoworkspace current,address:" + address)
-        Hyprland.dispatch("focuswindow address:" + address)
-        root.popupVisible = false
-    }
-    
-    function isPopulated(vdeskNum) { return populatedVdesks[vdeskNum] === true }
-    
-    function showWindowMenu(vdeskNum, globalX, globalY, screen) {
-        if (!isPopulated(vdeskNum)) return
-        root.contextVdesk = vdeskNum
-        root.popupX = globalX
-        root.popupY = globalY
-        root.popupScreen = screen
-        root.windowList = getWindowsForVdesk(vdeskNum)
-        root.popupVisible = true
-    }
-    
-    // ==========================================================
-    // UI: TOP BAR - Modular Component
-    // ==========================================================
-    TopBar {
-        activeVdesk: root.activeVdesk
-        populatedVdesks: root.populatedVdesks
-        
-        onVdeskClicked: (vdeskNum) => Hyprland.dispatch("vdesk " + vdeskNum)
-        onVdeskRightClicked: (vdeskNum, globalX, globalY, screen) => root.showWindowMenu(vdeskNum, globalX, globalY, screen)
-    }
-    
-    // ==========================================================
-    // UI: SAĞ TIK MENÜSÜ (POPUP) - Modular Component
-    // ==========================================================
-    WindowPopup {
-        visible: root.popupVisible
-        contextVdesk: root.contextVdesk
-        windowList: root.windowList
-        popupScreen: root.popupScreen
-        
-        onWindowClicked: (address) => root.bringWindowHere(address)
-        onDismissed: root.popupVisible = false
-    }
-    
-    // ==========================================================
-    // UI: OVERVIEW (3x3 GRID) - Modular Component
-    // ==========================================================
-    OverviewPanel {
-        visible: root.overviewVisible
-        activeVdesk: root.activeVdesk
-        allWindows: root.allWindows
 
-        onToggleRequested: root.toggleOverview()
-        onVdeskActivated: (vdeskNum) => Hyprland.dispatch("vdesk " + vdeskNum)
-    }
+    PanelWindow
+    {
+        id: windowSwitcherPanel
 
-	LabJournal {}
-	HevControl {}
-	HevHud {}
+        color: "transparent"
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.exclusiveZone: 0
+        implicitWidth: windowSwitcher.width
+        implicitHeight: windowSwitcher.height
+
+        Rectangle
+        {
+            id: windowSwitcher
+
+            property var isVisible: true
+
+            color: "transparent"
+            // border.color: Theme.border
+            // radius: 10
+            width: workspaceCardsRow.width + 60
+            height: workspaceCardsRow.height + 40
+            visible: isVisible
+            // anchors.centerIn: parent
+
+            Row
+            {
+                id: workspaceCardsRow
+                anchors.centerIn: parent
+                height:108
+                spacing: 20
+            }
+
+            Component
+            {
+                id: workspaceCardComponent
+
+                Rectangle
+                {
+                    id: workspaceCardComponentRectangle
+                    property var workspaceid: null
+                    property var allclients: null
+
+                    width: 192
+                    height: 108
+                    color: "transparent"
+                    // border.color: Theme.base
+                    // border.width: 14
+
+                    Item
+                    {
+                        Component.onCompleted:
+                        {
+                            let i = 0
+
+                            while(i < workspaceCardComponentRectangle.children.length)
+                            {
+                                if (workspaceid === allclients[i]["workspace"]["id"])
+                                    workspaceCardComponentRectangle.children[i].destroy()
+                                i++
+                            }
+                            let j = 0
+                            i = 0
+                            while (i < allclients.length)
+                            {
+                                if (workspaceid === allclients[i]["workspace"]["id"])
+                                {
+                                    clientCardComponent.createObject(workspaceCardComponentRectangle, {
+                                        clientAtx: allclients[i]["at"][0],
+                                        clientAty: allclients[i]["at"][1],
+                                        clientSizex: allclients[i]["size"][0],
+                                        clientSizey: allclients[i]["size"][1],
+                                        clientClass: allclients[i]["class"],
+                                        clientTitle: allclients[i]["title"],
+                                        clientAddress: allclients[i]["address"]
+                                    })
+                                    j++
+                                    // console.log(allclients[i]["title"] + "------------------\n" + "X coordinate: " + allclients[i]["at"][0] + "\nY coordinate: " + allclients[i]["at"][1] + "\n X size:" + allclients[i]["size"][0] + "\nY size: " + allclients[i]["size"][1])
+                                }
+                                i++
+                            }
+                        }
+                    }
+                }
+            }
+
+            Component
+            {
+                id: clientCardComponent
+
+                Rectangle
+                {
+                    property var clientAtx: null
+                    property var clientAty: null
+                    property var clientSizex: null
+                    property var clientSizey: null
+                    property var clientClass: null
+                    property var clientTitle: null
+                    property var clientAddress: null
+
+                    color: Theme.background 
+                    border.color: Theme.border
+                    radius: 5
+                    x: clientAtx / 10
+                    y: clientAty / 10
+                    width: clientSizex / 10
+                    height: clientSizey / 10
+
+                    Text
+                    {
+                        id: jalem
+                        anchors.centerIn: parent
+                        text: clientClass
+                        color: Theme.text 
+                        font.pixelSize: 12
+                    }
+
+                    MouseArea
+                    {
+                        anchors.fill: parent
+                        // preventStealing: true
+                        onEntered:
+                        {
+                            windowFocusDispatcher.running = true
+                        }
+                    }
+
+                    Process
+                    {
+                        id: windowFocusDispatcher
+                        command: ["sh", "-c", "hyprctl dispatch " + "\"hl.dsp.focus({window=\'address:" + clientAddress + "\'})\""]
+                    }
+
+                }
+            }
+            
+
+
+            function rebuildWsCards()
+            {
+                let i = 0
+                while(i < workspaceCardsRow.children.length)
+                {
+                    workspaceCardsRow.children[i].destroy()
+                    i++
+                }
+
+                i = 0
+                while(i < shellRoot.parsedWorkspaces.length)
+                {
+                    workspaceCardComponent.createObject(workspaceCardsRow, {
+                            workspaceid: shellRoot.parsedWorkspaces[i]["id"],
+                            allclients: shellRoot.parsedClients
+                        })
+                    i++
+                }
+            }
+
+            Timer
+            {
+                id: uiUpdaterroot
+                repeat: true
+                running:
+                {
+                    if (windowSwitcher.isVisible === true)
+                        true
+                    else
+                        false
+                }
+                onTriggered:
+                {
+                    uiUpdater.running = true
+                }
+            }
+
+            Timer
+            {
+                id: uiUpdater
+                repeat:
+                {
+                    if (windowSwitcher.isVisible === true)
+                        true
+                    else
+                        false
+                }
+                running: true
+                interval: 100
+                onTriggered:
+                {
+                    jsonFetcher.running = true
+                }
+            }
+
+            IpcHandler
+            {
+                target: "windowSwitcher"
+                function toggleVisibility()
+                {
+                    // if (windowSwitcher.isVisible === false)
+                    //     jsonFetcher.running = true
+                    // else
+                    //     jsonFetcher.running = false
+                    windowSwitcher.isVisible = !windowSwitcher.isVisible
+                }
+            }
+        }
+    }
 }
