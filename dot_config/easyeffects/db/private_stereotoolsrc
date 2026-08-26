@@ -1,0 +1,5 @@
+[soe][StereoTools#0]
+delay=0.19
+stereoBase=0.09
+stereoPhase=12
+wet=0.1

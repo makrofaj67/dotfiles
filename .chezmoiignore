@@ -12,3 +12,11 @@ README.md
 **/__pycache__/**
 *.pyc
 *.bak
+.config/copyq/*.dat
+.config/copyq/*.lock*
+.config/copyq/copyq.pub
+.config/copyq/copyq_geometry.ini*
+.config/quickshell/hypr-qswitcher-plugin/build/**
+.config/quickshell/hypr-qswitcher-plugin/.cache/**
+
+

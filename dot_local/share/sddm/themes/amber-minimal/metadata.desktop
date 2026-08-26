@@ -1,0 +1,10 @@
+[SddmGreeterTheme]
+Name=Amber Minimal
+Description=Minimalist Amber Theme matching Quickshell & Hyprlock
+Author=rakman
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+QtVersion=6

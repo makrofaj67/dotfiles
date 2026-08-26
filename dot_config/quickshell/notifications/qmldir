@@ -1,0 +1,5 @@
+singleton NotificationManager 1.0 NotificationManager.qml
+NotificationPopupLayer 1.0 NotificationPopupLayer.qml
+NotificationCenter 1.0 NotificationCenter.qml
+NotificationCard 1.0 NotificationCard.qml
+MediaControlCard 1.0 MediaControlCard.qml

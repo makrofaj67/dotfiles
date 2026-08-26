@@ -1,2 +1,18 @@
+singleton Theme 1.0 ../Theme.qml
+DateTimeWidget 1.0 DateTimeWidget.qml
+CalendarPopup 1.0 CalendarPopup.qml
+CalendarWindow 1.0 CalendarWindow.qml
+BrightnessSlider 1.0 BrightnessSlider.qml
+ConnectivityWidget 1.0 ConnectivityWidget.qml
+QuickControls 1.0 QuickControls.qml
+ScreenCaptureWidget 1.0 ScreenCaptureWidget.qml
+BatteryWidget 1.0 BatteryWidget.qml
+WorkspacesWidget 1.0 WorkspacesWidget.qml
+SessionWidget 1.0 SessionWidget.qml
+NotificationWidget 1.0 NotificationWidget.qml
+LyricsWidget 1.0 LyricsWidget.qml
+SystemTrayWidget 1.0 SystemTrayWidget.qml
+NotepadWidget 1.0 NotepadWidget.qml
+NotepadWindow 1.0 NotepadWindow.qml
 TopBar 1.0 TopBar.qml
-Theme 1.0 ../Theme.qml
+

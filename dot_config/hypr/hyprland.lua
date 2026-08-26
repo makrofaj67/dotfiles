@@ -11,3 +11,6 @@ require("lua.lookandfeel")
 require("lua.input")
 require("lua.keybindings")
 require("lua.windowsandworkspaces")
+
+-- hyprmon: managed monitor profile include
+require("hyprmon")

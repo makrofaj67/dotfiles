@@ -1,0 +1,5 @@
+singleton Theme 1.0 ../Theme.qml
+WorkspaceCard 1.0 WorkspaceCard.qml
+NewWorkspaceCard 1.0 NewWorkspaceCard.qml
+ClientCard 1.0 ClientCard.qml
+WindowSwitcher 1.0 WindowSwitcher.qml

@@ -1,0 +1,15 @@
+{
+  "enableSound": true,
+  "rules": [
+    {
+      "matchApp": "Pacman",
+      "silent": true,
+      "block": true
+    },
+    {
+      "matchApp": "notify-send",
+      "silent": true,
+      "block": true
+    }
+  ]
+}

@@ -1,3 +1,12 @@
 singleton Theme 1.0 Theme.qml
 TopBar 1.0 topbar/TopBar.qml
+DateTimeWidget 1.0 topbar/DateTimeWidget.qml
+CalendarWindow 1.0 topbar/CalendarWindow.qml
+CalendarPopup 1.0 topbar/CalendarPopup.qml
+BrightnessSlider 1.0 topbar/BrightnessSlider.qml
+WindowSwitcher 1.0 switcher3/WindowSwitcher.qml
+WorkspaceCard 1.0 switcher3/WorkspaceCard.qml
+NewWorkspaceCard 1.0 switcher3/NewWorkspaceCard.qml
+ClientCard 1.0 switcher3/ClientCard.qml
+NotepadWindow 1.0 topbar/NotepadWindow.qml
 

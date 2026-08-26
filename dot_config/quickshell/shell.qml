@@ -1,12 +1,9 @@
 import QtQuick
-import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Hyprland
 import Quickshell.Io
-import Quickshell.Widgets
-// import QtQuick.Controls.Basic
+import "notifications"
+import "launcher"
 
 ShellRoot
 {
@@ -15,11 +12,16 @@ ShellRoot
     property var parsedClients: []
     property var parsedWorkspaces: []
     property var parsedMonitors: []
+    property var parsedActiveWindow: null
+    property int activeWorkspaceId: 1
+    property bool isDraggin: false
+
+    // ── Data Fetcher ──────────────────────────────────────────────
 
     Process
     {
         id: jsonFetcher
-        command: ["sh", "-c", "echo \"{\\\"clients\\\": $(hyprctl clients -j), \\\"workspaces\\\": $(hyprctl workspaces -j), \\\"monitors\\\": $(hyprctl monitors -j)}\""]
+        command: ["sh", "-c", "jq -n -c --argjson c \"$(hyprctl clients -j)\" --argjson w \"$(hyprctl workspaces -j)\" --argjson m \"$(hyprctl monitors -j)\" --argjson a \"$(hyprctl activeworkspace -j)\" --argjson win \"$(hyprctl activewindow -j)\" '{clients: $c, workspaces: $w, monitors: $m, activeWorkspace: $a, activeWindow: $win}'"]
         running: true
         stdout: StdioCollector
         {
@@ -27,20 +29,36 @@ ShellRoot
             {
                 try
                 {
-                    var data = JSON.parse(text)
-                    shellRoot.parsedClients = data.clients || []
-                    shellRoot.parsedWorkspaces = data.workspaces || []
-                    shellRoot.parsedMonitors = data.monitors || []
-                    topBar.rebuildWsCards()
-                    windowSwitcher.rebuildWsCards()
+                    if (text && text.trim() !== "")
+                    {
+                        var data = JSON.parse(text)
+                        shellRoot.parsedClients = data.clients || []
+                        shellRoot.parsedWorkspaces = data.workspaces || []
+                        shellRoot.parsedMonitors = data.monitors || []
+                        shellRoot.parsedActiveWindow = data.activeWindow || null
+                        if (data.activeWorkspace && data.activeWorkspace.id)
+                        {
+                            shellRoot.activeWorkspaceId = data.activeWorkspace.id
+                        }
+                        else
+                        {
+                            var focMon = (data.monitors || []).find(function(m) { return m.focused }) || (data.monitors && data.monitors[0])
+                            if (focMon && focMon.activeWorkspace)
+                            {
+                                shellRoot.activeWorkspaceId = focMon.activeWorkspace.id
+                            }
+                        }
+                    }
                 }
                 catch(e)
                 {
-                    console.log("aajsonFetcher JSON Parse Error:", e)
+                    console.log("jsonFetcher JSON Parse Error:", e)
                 }
             }
         }
     }
+
+    // ── Event Listener ────────────────────────────────────────────
 
     Process
     {
@@ -52,495 +70,295 @@ ShellRoot
             splitMarker: "\n"
             onRead: function(data)
             {
-                var line = data
-                var idx = line.indexOf(">>")
-                if (idx !== -1)
+                if (data && data.trim() !== "")
                 {
-                    var eventName = line.substring(0, idx)
-                    var data = line.substring(idx + 2)
-                    if (["closewindow" ,"openwindow", "movewindow", "destroyworkspace", "createworkspace"].indexOf(eventName) !== -1)
-                    {
-                        jsonFetcher.running = false
-                        jsonFetcher.running = true
-                    }
+                    fetchDebounce.restart()
                 }
             }
         }
     }
 
-    PanelWindow
+    Timer
+    {
+        id: eventReconnectTimer
+        interval: 3000
+        running: !eventListener.running
+        onTriggered:
+        {
+            eventListener.running = true
+        }
+    }
+
+    Timer
+    {
+        id: fetchDebounce
+        interval: 30
+        onTriggered:
+        {
+            jsonFetcher.running = false
+            jsonFetcher.running = true
+        }
+    }
+
+    // ── UI Components ─────────────────────────────────────────────
+
+    TopBar
     {
         id: topBar
-
-        implicitHeight:27
-        implicitWidth: 1920
-        anchors.top: true
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
-        // WlrLayershell.exclusiveZone: 0
-        function rebuildWsCards()
+        parsedWorkspaces: shellRoot.parsedWorkspaces
+        parsedClients: shellRoot.parsedClients
+        parsedMonitors: shellRoot.parsedMonitors
+        activeWorkspaceId: shellRoot.activeWorkspaceId
+        activeWindowAddress: (shellRoot.parsedActiveWindow && shellRoot.parsedActiveWindow.address) ? shellRoot.parsedActiveWindow.address : ""
+        onCalendarToggleRequested:
         {
-            let i = 0
-            while(workspaceButtonsRow.children.length > i)
-            {
-                workspaceButtonsRow.children[i].destroy()
-                i++
-            }
-
-            i = 0
-            while (shellRoot.parsedWorkspaces.length > i)
-            {
-                workspaceButtonComponent.createObject(workspaceButtonsRow, {
-                        workspaceid: shellRoot.parsedWorkspaces[i]["id"],
-                        allClients: shellRoot.parsedClients
-                    })
-                i++
-            }
+            calendarWindow.isVisible = !calendarWindow.isVisible
         }
-
-        Row
+        onNotepadToggleRequested:
         {
-            id: workspaceButtonsRow
-
-            spacing: 5
-            anchors.centerIn: parent
-
+            notepadWindow.isVisible = !notepadWindow.isVisible
         }
+    }
 
-        Rectangle
+    CalendarWindow
+    {
+        id: calendarWindow
+    }
+
+    NotepadWindow
+    {
+        id: notepadWindow
+    }
+
+    WindowSwitcher
+    {
+        id: windowSwitcherPanel
+        parsedWorkspaces: shellRoot.parsedWorkspaces
+        parsedClients: shellRoot.parsedClients
+        parsedMonitors: shellRoot.parsedMonitors
+        activeWorkspaceId: shellRoot.activeWorkspaceId
+        activeWindowAddress: (shellRoot.parsedActiveWindow && shellRoot.parsedActiveWindow.address) ? shellRoot.parsedActiveWindow.address : ""
+        onPollRequested:
         {
-            id: dateTime
+            if (!jsonFetcher.running)
+                jsonFetcher.running = true
+        }
+        onFetchRequested: fetchDebounce.restart()
+        onDragStateChanged: function(dragging)
+        {
+            shellRoot.isDraggin = dragging
+        }
+    }
 
-            height: 26
-            width: 210
-            radius: 4
+    NotificationPopupLayer
+    {
+        id: notificationPopupLayer
+    }
 
-            property var dateString: null
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: 5
-            color: Theme.base
-            border.color: Theme.border 
+    NotificationCenter
+    {
+        id: notificationCenter
+    }
 
+    AppLauncher
+    {
+        id: appLauncher
+    }
 
+    IpcHandler
+    {
+        target: "notifications"
+        function toggle()
+        {
+            NotificationManager.toggleCenter()
+        }
+    }
 
-            Component
+    IpcHandler
+    {
+        target: "launcher"
+        function toggle()
+        {
+            LauncherManager.toggle()
+        }
+        function open()
+        {
+            LauncherManager.open()
+        }
+        function close()
+        {
+            LauncherManager.close()
+        }
+    }
+
+    IpcHandler
+    {
+        target: "notepad"
+        function toggle()
+        {
+            notepadWindow.isVisible = !notepadWindow.isVisible
+        }
+        function open()
+        {
+            notepadWindow.isVisible = true
+        }
+        function close()
+        {
+            notepadWindow.isVisible = false
+        }
+    }
+
+    // ── 1. TOP-LEFT DEBUG OSD OVERLAY PER MONITOR (Red/Green) ──────
+    Variants
+    {
+        model: Quickshell.screens
+        delegate: PanelWindow
+        {
+            id: topDebugOverlay
+            visible: false
+            required property var modelData
+            screen: modelData
+
+            anchors.top: true
+            anchors.left: true
+            implicitWidth: 260
+            implicitHeight: 130
+            color: "transparent"
+
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.exclusiveZone: 0
+            mask: Region {} // click-through
+
+            Rectangle
             {
-                id: dateComponent
+                id: topDebugInnerRect
+                x: 16
+                y: 36
+                width: topDebugTextCol.width + 20
+                height: topDebugTextCol.height + 16
+                color: Qt.rgba(0, 0, 0, 0.90)
+                border.color: "#ff3333"
+                border.width: 3
+                radius: 6
 
-                Text
+                Column
                 {
-                    id: dateText
+                    id: topDebugTextCol
                     anchors.centerIn: parent
-                    text: dateTime.dateString
-                    color: Theme.text
-                    font.pixelSize: 14
-                    topPadding: 4
-                    font.family: "Hack"
-                }
-            }
-
-
-
-            Timer
-            {
-                running: true
-                repeat: true
-                interval: 1000
-                onTriggered:
-                {
-                    clockWatcher.running = true
-                }
-            }
-
-            function ticktock()
-            {
-                let i = 0
-
-                while(dateTime.children.length > i)
-                {
-                    dateComponent.children[i].destroy()
-                    i++
-                }
-                dateComponent.createObject(dateTime, {
-
-                })
-            }
-
-            Process
-            {
-                id: clockWatcher
-                command: ["sh", "-c", "date '+[%u] %x %R:%S'"]
-                stdout: StdioCollector
-                {
-                    onStreamFinished:
-                    {
-                        try
-                        {
-                            dateTime.dateString = text
-                            dateTime.ticktock()
-                        }
-                        catch(e)
-                        {
-                            // console.log("date fetch problem", e)
-                        }
-                    }
-                }
-            }
-        }
-
-        Rectangle
-        {
-            anchors.right: parent.right
-            y: 6
-            color: Theme.border
-            height: 19
-            width: children[0].width + 10
-            anchors.rightMargin: 5
-
-            radius: 10
-
-            Slider
-            {
-                id: brightnessSlider
-                anchors.centerIn: parent
-
-                width: 120
-                height: 26
-                from: 0
-                to: 64764
-                stepSize: 648
-                onMoved:
-                {
-                    setBrightness.running = true
-                }
-
-                Process
-                {
-                    id: getBrightness
-                    command: ["sh", "-c", "brightnessctl get"]
-                    running: true
-                    stdout: StdioCollector
-                    {
-                        onStreamFinished:
-                        {
-                            try
-                            {
-                                var data = text
-                                brightnessSlider.value = data
-                            }
-                            catch (e)
-                            {
-                                // console.log(e)
-                            }
-                        }
-                    }
-                }
-
-                Process
-                {
-                    id: setBrightness
-                    command: ["sh", "-c", "brightnessctl set " + brightnessSlider.value]
-                    running: false
-                    stdout: StdioCollector
-                    {
-                        onStreamFinished:
-                        {
-                            try
-                            {
-                                // console.log(setBrightness.command)
-                            }
-                            catch (e)
-                            {
-                                console.log(e)
-                            }
-                        }
-                    }
-
-                }
-            }
-        }
-
-        Component
-        {
-            id: workspaceButtonComponent
-
-            Button
-            {
-                property var workspaceid: null
-                property var allClients: null
-                
-                height: 26
-                width: buttonArea.width + 9
-
-                onClicked:
-                {
-                    hyprctlDispatcher.running = true
-                }
-
-                Process
-                {
-                    id: hyprctlDispatcher
-                    command: ["sh", "-c", "hyprctl dispatch" + " '" + "hl.dsp.focus({ workspace = " + workspaceid + "})'"]
-                    running: false
-                }
-               
-                Row
-                {
-                    id: buttonArea
-                    anchors.verticalCenter: parent.verticalCaskaydiaCove
-
-                    leftPadding: 6
                     spacing: 4
+
+                    property var monObj: (shellRoot.parsedMonitors || []).find(function(m) { return m.name === topDebugOverlay.screen.name })
+                    property int currentWsId: monObj && monObj.activeWorkspace ? monObj.activeWorkspace.id : 0
+                    property int currentVdeskId: currentWsId > 10 ? (currentWsId - 10) : currentWsId
 
                     Text
                     {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: workspaceid + ""
-                        color: Theme.text 
-                        font.pixelSize: 14
-                        topPadding: 4
+                        text: "WS: " + topDebugTextCol.currentWsId
+                        color: "#ff3333"
                         font.family: "Hack"
+                        font.bold: true
+                        font.pixelSize: 26
                     }
 
-                    Component.onCompleted:
+                    Text
                     {
-                        let i = 0
-                        while(i < allClients.length)
-                        {
-                            if (allClients[i]["workspace"]["id"] === workspaceid)
-                            {
-                                clientIconComponent.createObject(buttonArea, {
-                                        clientClassName: allClients[i]["class"]
-                                    })
-                            }
-                            i++
-                        }
+                        text: "VDESK: " + topDebugTextCol.currentVdeskId
+                        color: "#33ff33"
+                        font.family: "Hack"
+                        font.bold: true
+                        font.pixelSize: 26
                     }
                 }
-            }
-
-        }
-
-        Component
-        {
-            id: clientIconComponent
-
-            Text
-            {
-                property var clientClassName: null
-
-                text: clientClassName
-                font.pixelSize: 14
-                color: Theme.text
-                topPadding: 4
-                font.family: "Hack"
             }
         }
     }
 
-    PanelWindow
+    // ── 2. BOTTOM-LEFT FOCUS DIAGNOSTIC HUD (Hot Pink) ──────────────
+    Variants
     {
-        id: windowSwitcherPanel
-
-        color: "transparent"
-        WlrLayershell.layer: WlrLayer.Overlay
-        WlrLayershell.exclusiveZone: 0
-        implicitWidth: windowSwitcher.width
-        implicitHeight: windowSwitcher.height
-
-        Rectangle
+        model: Quickshell.screens
+        delegate: PanelWindow
         {
-            id: windowSwitcher
+            id: bottomPinkOverlay
+            visible: false
+            required property var modelData
+            screen: modelData
 
-            property var isVisible: true
-
+            anchors.bottom: true
+            anchors.left: true
+            implicitWidth: 800
+            implicitHeight: 180
             color: "transparent"
-            // border.color: Theme.border
-            // radius: 10
-            width: workspaceCardsRow.width + 60
-            height: workspaceCardsRow.height + 40
-            visible: isVisible
-            // anchors.centerIn: parent
 
-            Row
+            WlrLayershell.layer: WlrLayer.Overlay
+            WlrLayershell.exclusiveZone: 0
+            mask: Region {} // click-through
+
+            Rectangle
             {
-                id: workspaceCardsRow
-                anchors.centerIn: parent
-                height:108
-                spacing: 20
-            }
+                id: bottomPinkInnerRect
+                x: 16
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 16
+                width: bottomPinkTextCol.width + 24
+                height: bottomPinkTextCol.height + 20
+                color: Qt.rgba(0, 0, 0, 0.92)
+                border.color: "#ff2a8d"
+                border.width: 3
+                radius: 6
 
-            Component
-            {
-                id: workspaceCardComponent
-
-                Rectangle
+                Column
                 {
-                    id: workspaceCardComponentRectangle
-                    property var workspaceid: null
-                    property var allclients: null
+                    id: bottomPinkTextCol
+                    anchors.centerIn: parent
+                    spacing: 4
 
-                    width: 192
-                    height: 108
-                    color: "transparent"
-                    // border.color: Theme.base
-                    // border.width: 14
+                    property var actWin: shellRoot.parsedActiveWindow
+                    property int winWsId: actWin && actWin.workspace ? actWin.workspace.id : 0
+                    property int winVdeskId: winWsId > 10 ? (winWsId - 10) : winWsId
+                    property int winX: actWin && actWin.at && actWin.at.length > 0 ? actWin.at[0] : 0
+                    property int winY: actWin && actWin.at && actWin.at.length > 1 ? actWin.at[1] : 0
+                    property string winCls: actWin && actWin.class ? actWin.class : (actWin && actWin.title ? actWin.title.substring(0, 16) : "none")
 
-                    Item
-                    {
-                        Component.onCompleted:
-                        {
-                            let i = 0
-
-                            while(i < workspaceCardComponentRectangle.children.length)
-                            {
-                                if (workspaceid === allclients[i]["workspace"]["id"])
-                                    workspaceCardComponentRectangle.children[i].destroy()
-                                i++
-                            }
-                            let j = 0
-                            i = 0
-                            while (i < allclients.length)
-                            {
-                                if (workspaceid === allclients[i]["workspace"]["id"])
-                                {
-                                    clientCardComponent.createObject(workspaceCardComponentRectangle, {
-                                        clientAtx: allclients[i]["at"][0],
-                                        clientAty: allclients[i]["at"][1],
-                                        clientSizex: allclients[i]["size"][0],
-                                        clientSizey: allclients[i]["size"][1],
-                                        clientClass: allclients[i]["class"],
-                                        clientTitle: allclients[i]["title"],
-                                        clientAddress: allclients[i]["address"]
-                                    })
-                                    j++
-                                    // console.log(allclients[i]["title"] + "------------------\n" + "X coordinate: " + allclients[i]["at"][0] + "\nY coordinate: " + allclients[i]["at"][1] + "\n X size:" + allclients[i]["size"][0] + "\nY size: " + allclients[i]["size"][1])
-                                }
-                                i++
-                            }
-                        }
-                    }
-                }
-            }
-
-            Component
-            {
-                id: clientCardComponent
-
-                Rectangle
-                {
-                    property var clientAtx: null
-                    property var clientAty: null
-                    property var clientSizex: null
-                    property var clientSizey: null
-                    property var clientClass: null
-                    property var clientTitle: null
-                    property var clientAddress: null
-
-                    color: Theme.background 
-                    border.color: Theme.border
-                    radius: 5
-                    x: clientAtx / 10
-                    y: clientAty / 10
-                    width: clientSizex / 10
-                    height: clientSizey / 10
-
+                    // 1. Satır: Gerçekte focus hangi ws de
                     Text
                     {
-                        id: jalem
-                        anchors.centerIn: parent
-                        text: clientClass
-                        color: Theme.text 
-                        font.pixelSize: 12
+                        text: "1. GERÇEK FOCUS WS: " + shellRoot.activeWorkspaceId
+                        color: "#ff2a8d"
+                        font.family: "Hack"
+                        font.bold: true
+                        font.pixelSize: 22
                     }
 
-                    MouseArea
+                    // 2. Satır: Bizim vdeskimizdeki focus nerede
+                    Text
                     {
-                        anchors.fill: parent
-                        // preventStealing: true
-                        onEntered:
-                        {
-                            windowFocusDispatcher.running = true
-                        }
+                        text: "2. VDESK FOCUS: " + (shellRoot.activeWorkspaceId > 10 ? (shellRoot.activeWorkspaceId - 10) : shellRoot.activeWorkspaceId)
+                        color: "#ff2a8d"
+                        font.family: "Hack"
+                        font.bold: true
+                        font.pixelSize: 22
                     }
 
-                    Process
+                    // 3. Satır: Focusun hangi pencere olduğu -> WS, VDESK
+                    Text
                     {
-                        id: windowFocusDispatcher
-                        command: ["sh", "-c", "hyprctl dispatch " + "\"hl.dsp.focus({window=\'address:" + clientAddress + "\'})\""]
+                        text: "3. WIN: " + bottomPinkTextCol.winCls + " -> WS: " + bottomPinkTextCol.winWsId + ", VDESK: " + bottomPinkTextCol.winVdeskId
+                        color: "#ff2a8d"
+                        font.family: "Hack"
+                        font.bold: true
+                        font.pixelSize: 20
                     }
 
-                }
-            }
-            
-
-
-            function rebuildWsCards()
-            {
-                let i = 0
-                while(i < workspaceCardsRow.children.length)
-                {
-                    workspaceCardsRow.children[i].destroy()
-                    i++
-                }
-
-                i = 0
-                while(i < shellRoot.parsedWorkspaces.length)
-                {
-                    workspaceCardComponent.createObject(workspaceCardsRow, {
-                            workspaceid: shellRoot.parsedWorkspaces[i]["id"],
-                            allclients: shellRoot.parsedClients
-                        })
-                    i++
-                }
-            }
-
-            Timer
-            {
-                id: uiUpdaterroot
-                repeat: true
-                running:
-                {
-                    if (windowSwitcher.isVisible === true)
-                        true
-                    else
-                        false
-                }
-                onTriggered:
-                {
-                    uiUpdater.running = true
-                }
-            }
-
-            Timer
-            {
-                id: uiUpdater
-                repeat:
-                {
-                    if (windowSwitcher.isVisible === true)
-                        true
-                    else
-                        false
-                }
-                running: true
-                interval: 100
-                onTriggered:
-                {
-                    jsonFetcher.running = true
-                }
-            }
-
-            IpcHandler
-            {
-                target: "windowSwitcher"
-                function toggleVisibility()
-                {
-                    // if (windowSwitcher.isVisible === false)
-                    //     jsonFetcher.running = true
-                    // else
-                    //     jsonFetcher.running = false
-                    windowSwitcher.isVisible = !windowSwitcher.isVisible
+                    // 4. Satır: Koordinat bilgisi
+                    Text
+                    {
+                        text: "   KOORDİNAT: (" + bottomPinkTextCol.winX + ", " + bottomPinkTextCol.winY + ")"
+                        color: "#ff66cc"
+                        font.family: "Hack"
+                        font.bold: true
+                        font.pixelSize: 18
+                    }
                 }
             }
         }

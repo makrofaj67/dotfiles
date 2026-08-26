@@ -1,0 +1,18 @@
+[Presets]
+lastLoadedOutputPreset=Perfect EQ
+
+[StreamInputs]
+inputDevice=bluez_input.30:50:75:48:B6:F0
+visiblePage=pluginsPage
+
+[StreamOutputs]
+mostUsedPresets=Advanced Auto Gain,Perfect EQ,Loudness+Autogain,Laptop,Boosted
+outputDevice=bluez_output.30_50_75_48_B6_F0.1
+plugins=equalizer#0,autogain#0,expander#0,bass_loudness#0,stereo_tools#0
+usedPresets=Advanced Auto Gain:8,Bass Boosted:1,Bass Enhancing + Perfect EQ:1,Bass Enhancing + Perfect EQ - Low Latency:1,Boosted:1,Laptop:1,Loudness+Autogain:1,Perfect EQ:1
+visiblePage=pluginsPage
+visiblePlugin=expander#0
+
+[Window]
+height=1036
+width=931
