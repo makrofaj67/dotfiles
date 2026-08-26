@@ -1,4 +1,4 @@
-#  Damnfiles
+# Damnfiles
 
 Personal Arch Linux dotfiles powered by **Hyprland** and **Quickshell**, managed with **Chezmoi**.
 
@@ -13,18 +13,13 @@ Personal Arch Linux dotfiles powered by **Hyprland** and **Quickshell**, managed
 
 <br>
 
-|  Window Switcher |  Lockscreen |
+| Window Switcher | Lockscreen |
 | :---: | :---: |
 | ![Switcher](screenshots/switcher.png) | ![Lockscreen](screenshots/lockscreen.png) |
-
-|  Notifications & Cliphist |  Launcher & Notes |
-| :---: | :---: |
+| **Notifications & Cliphist** | **Launcher & Notes** |
 | ![Notifications](screenshots/notificationcliphist.png) | ![Launcher](screenshots/launcherandnotes.png) |
-
-|  💻 Terminal | 📝 Editor (Neovim) |
-| :---: | :---: |
+| **Terminal** | **Editor (Neovim)** |
 | ![Terminal](screenshots/terminal.png) | ![Editor](screenshots/editor.png) |
-
 
 </div>
 
