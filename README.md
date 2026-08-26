@@ -4,7 +4,7 @@ Personal Arch Linux dotfiles powered by **Hyprland** and **Quickshell**, managed
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 <div align="center">
 
