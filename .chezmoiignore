@@ -1,2 +1,14 @@
 .gitignore
 dot_fonts/Archive.tar.gz
+CHEZMOI_REHBERI.md
+CHEZMOI_DETAYLI_ANALIZ.md
+README.md
+*.txt
+**/.git
+**/.git/**
+**/dot_git
+**/dot_git/**
+**/__pycache__
+**/__pycache__/**
+*.pyc
+*.bak
