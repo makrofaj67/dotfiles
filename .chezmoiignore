@@ -3,7 +3,10 @@ dot_fonts/Archive.tar.gz
 CHEZMOI_REHBERI.md
 CHEZMOI_DETAYLI_ANALIZ.md
 README.md
+screenshots/**
+assets/**
 *.txt
+
 **/.git
 **/.git/**
 **/dot_git
